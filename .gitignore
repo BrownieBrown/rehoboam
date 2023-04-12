@@ -232,3 +232,5 @@ sketch
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij,visualstudiocode,goland,react,jenv
+server/local.env
+server/.idea
