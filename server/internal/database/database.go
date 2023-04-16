@@ -106,3 +106,14 @@ func DeleteUserFromDatabaseByEmail(db *sql.DB, email string) error {
 
 	return nil
 }
+
+func CreateUser(db *sql.DB, user *models.User) error {
+	_, err := db.Exec("INSERT INTO users (email, password) VALUES (?, ?)", user.Email, user.Password)
+
+	if err != nil {
+		log.Printf("Error creating user: %v", err)
+		return err
+	}
+
+	return nil
+}

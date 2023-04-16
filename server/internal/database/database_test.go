@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"rehoboam/internal/config"
+	"rehoboam/internal/models"
 	"testing"
 )
 
@@ -123,6 +124,43 @@ func TestClearDatabase(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Error clearing users table")
 
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCreateUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	t.Run("Successfully create user", func(t *testing.T) {
+		mock.ExpectExec("^INSERT INTO users").
+			WithArgs("user1@example.com", "password123").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		user := models.User{
+			Email:    "user1@example.com",
+			Password: "password123",
+		}
+
+		err := CreateUser(db, &user)
+		require.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Unsuccessfully create user", func(t *testing.T) {
+		mock.ExpectExec("^INSERT INTO users").
+			WithArgs("user2@example.com", "password123").
+			WillReturnError(errors.New("Error creating user"))
+
+		user := models.User{
+			Email:    "user2@example.com",
+			Password: "password123",
+		}
+
+		err := CreateUser(db, &user)
+		require.Error(t, err)
+		assert.Equal(t, "Error creating user", err.Error())
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

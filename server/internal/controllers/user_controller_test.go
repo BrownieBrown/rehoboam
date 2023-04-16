@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"rehoboam/internal/models"
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,9 @@ func setupTestRouter(db *sql.DB) *gin.Engine {
 	})
 	admin.DELETE("/user", func(c *gin.Context) {
 		DeleteAllUsers(db, c)
+	})
+	admin.POST("/user", func(c *gin.Context) {
+		CreateUser(db, c)
 	})
 
 	return r
@@ -206,6 +210,50 @@ func TestDeleteAllUsers(t *testing.T) {
 		router.ServeHTTP(resp, req)
 
 		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestCreateUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	router := setupTestRouter(db)
+
+	t.Run("Successfully create user", func(t *testing.T) {
+		mock.ExpectExec("^INSERT INTO users").
+			WithArgs("user1@example.com", "password123").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		reqBody := `{"email": "user1@example.com", "password": "password123"}`
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/admin/user", strings.NewReader(reqBody))
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusCreated, resp.Code)
+		assert.Contains(t, resp.Body.String(), "User successfully created")
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Unsuccessfully create user", func(t *testing.T) {
+		mock.ExpectExec("^INSERT INTO users").
+			WithArgs("user2@example.com", "password123").
+			WillReturnError(errors.New("Error creating user"))
+
+		reqBody := `{"email": "user2@example.com", "password": "password123"}`
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/admin/user", strings.NewReader(reqBody))
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+		assert.Contains(t, resp.Body.String(), "Error creating user")
 
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

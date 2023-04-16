@@ -60,3 +60,20 @@ func DeleteUserByEmail(db *sql.DB, c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Users deleted successfully"})
 }
+
+func CreateUser(db *sql.DB, c *gin.Context) {
+	var newUser models.User
+
+	if err := c.ShouldBindJSON(&newUser); err != nil {
+		helper.HandleError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err := database.CreateUser(db, &newUser)
+	if err != nil {
+		helper.HandleError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "User successfully created"})
+}

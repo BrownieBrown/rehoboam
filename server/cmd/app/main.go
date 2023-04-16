@@ -33,7 +33,11 @@ func main() {
 		admin.GET("/user/:email", func(c *gin.Context) { controllers.GetUser(db, c) })
 		admin.DELETE("/user", func(c *gin.Context) { controllers.DeleteAllUsers(db, c) })
 		admin.DELETE("/user/:email", func(c *gin.Context) { controllers.DeleteUserByEmail(db, c) })
+		admin.POST("/user", func(c *gin.Context) { controllers.CreateUser(db, c) })
 	}
 
-	r.Run(":8080")
+	err = r.Run(":8080")
+	if err != nil {
+		log.Fatalf("Error starting the server: %v", err)
+	}
 }
