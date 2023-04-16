@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"rehoboam/internal/config"
+	"rehoboam/internal/models"
 	"sync"
 	"time"
 
@@ -39,4 +40,32 @@ func (dbm *DBManager) Close() error {
 		return dbm.dbInstance.Close()
 	}
 	return nil
+}
+
+func GetAllUsersFromDB(db *sql.DB) ([]models.UserResponse, error) {
+	rows, err := db.Query("SELECT email FROM users")
+	if err != nil {
+		log.Printf("Error querying users: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.UserResponse
+	for rows.Next() {
+		var user models.UserResponse
+		err := rows.Scan(&user.Email)
+		if err != nil {
+			log.Printf("Error scanning user: %v", err)
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		log.Printf("Error iterating users: %v", err)
+		return nil, err
+	}
+
+	return users, nil
 }

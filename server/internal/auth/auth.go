@@ -7,6 +7,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"rehoboam/internal/helper"
 	"rehoboam/internal/models"
 )
 
@@ -23,10 +24,6 @@ func comparePasswords(hashedPwd, plainPwd string) bool {
 	return err == nil
 }
 
-func handleError(c *gin.Context, status int, message string) {
-	c.JSON(status, gin.H{"error": message})
-}
-
 func prepareAndExecute(db *sql.DB, query string, args ...interface{}) (sql.Result, error) {
 	stmt, err := db.Prepare(query)
 	if err != nil {
@@ -41,7 +38,7 @@ func SignUp(db *sql.DB, c *gin.Context) {
 	var user models.User
 
 	if err := c.ShouldBindJSON(&user); err != nil {
-		handleError(c, http.StatusBadRequest, err.Error())
+		helper.HandleError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -54,9 +51,9 @@ func SignUp(db *sql.DB, c *gin.Context) {
 	_, err = prepareAndExecute(db, "INSERT INTO users (email, password) VALUES (?, ?)", user.Email, hashedPassword)
 	if err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
-			handleError(c, http.StatusConflict, "User already exists")
+			helper.HandleError(c, http.StatusConflict, "User already exists")
 		} else {
-			handleError(c, http.StatusInternalServerError, "Error creating user")
+			helper.HandleError(c, http.StatusInternalServerError, "Error creating user")
 		}
 		return
 	}
@@ -67,14 +64,14 @@ func SignUp(db *sql.DB, c *gin.Context) {
 func SignIn(db *sql.DB, c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		handleError(c, http.StatusBadRequest, err.Error())
+		helper.HandleError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var hashedPassword string
 	stmt, err := db.Prepare("SELECT password FROM users WHERE email=?")
 	if err != nil {
-		handleError(c, http.StatusInternalServerError, "Error preparing query")
+		helper.HandleError(c, http.StatusInternalServerError, "Error preparing query")
 		return
 	}
 	defer stmt.Close()
@@ -82,15 +79,15 @@ func SignIn(db *sql.DB, c *gin.Context) {
 	err = stmt.QueryRow(user.Email).Scan(&hashedPassword)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			handleError(c, http.StatusUnauthorized, "Invalid email or password")
+			helper.HandleError(c, http.StatusUnauthorized, "Invalid email or password")
 		} else {
-			handleError(c, http.StatusInternalServerError, "Error retrieving user")
+			helper.HandleError(c, http.StatusInternalServerError, "Error retrieving user")
 		}
 		return
 	}
 
 	if !comparePasswords(hashedPassword, user.Password) {
-		handleError(c, http.StatusUnauthorized, "Invalid email or password")
+		helper.HandleError(c, http.StatusUnauthorized, "Invalid email or password")
 		return
 	}
 

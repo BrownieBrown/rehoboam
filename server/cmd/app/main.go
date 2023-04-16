@@ -5,6 +5,7 @@ import (
 	"log"
 	"rehoboam/internal/auth"
 	"rehoboam/internal/config"
+	"rehoboam/internal/controllers"
 	"rehoboam/internal/database"
 )
 
@@ -20,10 +21,15 @@ func main() {
 
 	r := gin.Default()
 
-	apiV1 := r.Group("/api/v1/user")
+	public := r.Group("/api/v1/user")
 	{
-		apiV1.POST("/signUp", func(c *gin.Context) { auth.SignUp(db, c) })
-		apiV1.POST("/signIn", func(c *gin.Context) { auth.SignIn(db, c) })
+		public.POST("/signUp", func(c *gin.Context) { auth.SignUp(db, c) })
+		public.POST("/signIn", func(c *gin.Context) { auth.SignIn(db, c) })
+	}
+
+	admin := r.Group("/api/v1/admin")
+	{
+		admin.GET("/user", func(c *gin.Context) { controllers.GetAllUsers(db, c) })
 	}
 
 	r.Run(":8080")
