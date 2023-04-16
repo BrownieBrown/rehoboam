@@ -28,8 +28,8 @@ func GetAllUsers(db *sql.DB, c *gin.Context) {
 
 func GetUser(db *sql.DB, c *gin.Context) {
 	email := c.Param("email")
-	user, err := database.GetUserByEmail(db, email)
 
+	user, err := database.GetUserByEmail(db, email)
 	if err != nil {
 		helper.HandleError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -37,4 +37,26 @@ func GetUser(db *sql.DB, c *gin.Context) {
 
 	userResponses := models.UserResponse{Email: user.Email}
 	c.JSON(http.StatusOK, userResponses)
+}
+
+func DeleteAllUsers(db *sql.DB, c *gin.Context) {
+	err := database.ClearDatabase(db)
+	if err != nil {
+		helper.HandleError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Users table successfully cleared"})
+}
+
+func DeleteUserByEmail(db *sql.DB, c *gin.Context) {
+	email := c.Param("email")
+	err := database.DeleteUserFromDatabaseByEmail(db, email)
+
+	if err != nil {
+		helper.HandleError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Users deleted successfully"})
 }

@@ -72,8 +72,8 @@ func GetAllUsersFromDB(db *sql.DB) ([]models.UserResponse, error) {
 
 func GetUserByEmail(db *sql.DB, email string) (*models.UserResponse, error) {
 	row := db.QueryRow("SELECT email FROM users WHERE email = ?", email)
-
 	var user models.UserResponse
+
 	err := row.Scan(&user.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -84,4 +84,25 @@ func GetUserByEmail(db *sql.DB, email string) (*models.UserResponse, error) {
 	}
 
 	return &user, nil
+}
+
+func ClearDatabase(db *sql.DB) error {
+	_, err := db.Exec("TRUNCATE TABLE users")
+
+	if err != nil {
+		log.Printf("Error clearing users table: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func DeleteUserFromDatabaseByEmail(db *sql.DB, email string) error {
+	_, err := db.Exec("DELETE FROM users WHERE email = ?", email)
+	if err != nil {
+		log.Printf("Error deleting user by email: %v", err)
+		return err
+	}
+
+	return nil
 }

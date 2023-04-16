@@ -31,6 +31,8 @@ func main() {
 	{
 		admin.GET("/user", func(c *gin.Context) { controllers.GetAllUsers(db, c) })
 		admin.GET("/user/:email", func(c *gin.Context) { controllers.GetUser(db, c) })
+		admin.DELETE("/user", func(c *gin.Context) { controllers.DeleteAllUsers(db, c) })
+		admin.DELETE("/user/:email", func(c *gin.Context) { controllers.DeleteUserByEmail(db, c) })
 	}
 
 	r.Run(":8080")

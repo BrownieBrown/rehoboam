@@ -23,6 +23,13 @@ func setupTestRouter(db *sql.DB) *gin.Engine {
 	admin.GET("/user/:email", func(c *gin.Context) {
 		GetUser(db, c)
 	})
+	admin.DELETE("/user/:email", func(c *gin.Context) {
+		DeleteUserByEmail(db, c)
+	})
+	admin.DELETE("/user", func(c *gin.Context) {
+		DeleteAllUsers(db, c)
+	})
+
 	return r
 }
 
@@ -132,6 +139,67 @@ func TestGetUser(t *testing.T) {
 			WillReturnError(errors.New("Error retrieving user"))
 
 		req, err := http.NewRequest(http.MethodGet, "/api/v1/admin/user/error@example.com", nil)
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestDeleteUserByEmail(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	router := setupTestRouter(db)
+
+	t.Run("Successful deletion of user by email", func(t *testing.T) {
+		mock.ExpectExec("^DELETE FROM users WHERE email = ?").
+			WithArgs("user1@example.com").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		req, err := http.NewRequest(http.MethodDelete, "/api/v1/admin/user/user1@example.com", nil)
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestDeleteAllUsers(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	router := setupTestRouter(db)
+
+	t.Run("Successfully clear database", func(t *testing.T) {
+		mock.ExpectExec("^TRUNCATE TABLE users").WillReturnResult(sqlmock.NewResult(0, 0))
+
+		req, err := http.NewRequest(http.MethodDelete, "/api/v1/admin/user", nil)
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Unsuccessfully clear database", func(t *testing.T) {
+		mock.ExpectExec("^TRUNCATE TABLE users").WillReturnError(errors.New("Error clearing users table"))
+
+		req, err := http.NewRequest(http.MethodDelete, "/api/v1/admin/user", nil)
 		require.NoError(t, err)
 
 		resp := httptest.NewRecorder()

@@ -99,6 +99,34 @@ func TestGetUserByEmail(t *testing.T) {
 	})
 }
 
+func TestClearDatabase(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	t.Run("Successfully clear database", func(t *testing.T) {
+		mock.ExpectExec("^TRUNCATE TABLE user").WillReturnResult(sqlmock.NewResult(0, 0))
+
+		err := ClearDatabase(db)
+
+		require.NoError(t, err)
+		assert.Nil(t, err)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Unsuccessfully clear database", func(t *testing.T) {
+		mock.ExpectExec("^TRUNCATE TABLE user").WillReturnError(errors.New("Error clearing users table"))
+
+		err := ClearDatabase(db)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Error clearing users table")
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
 func TestDBManager(t *testing.T) {
 	t.Run("Connect and close database", func(t *testing.T) {
 		cfg := config.DBConfig{
