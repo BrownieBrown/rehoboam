@@ -69,3 +69,19 @@ func GetAllUsersFromDB(db *sql.DB) ([]models.UserResponse, error) {
 
 	return users, nil
 }
+
+func GetUserByEmail(db *sql.DB, email string) (*models.UserResponse, error) {
+	row := db.QueryRow("SELECT email FROM users WHERE email = ?", email)
+
+	var user models.UserResponse
+	err := row.Scan(&user.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		log.Printf("Error scanning user: %v", err)
+		return nil, err
+	}
+
+	return &user, nil
+}

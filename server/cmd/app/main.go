@@ -30,6 +30,7 @@ func main() {
 	admin := r.Group("/api/v1/admin")
 	{
 		admin.GET("/user", func(c *gin.Context) { controllers.GetAllUsers(db, c) })
+		admin.GET("/user/:email", func(c *gin.Context) { controllers.GetUser(db, c) })
 	}
 
 	r.Run(":8080")

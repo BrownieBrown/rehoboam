@@ -20,6 +20,9 @@ func setupTestRouter(db *sql.DB) *gin.Engine {
 	admin.GET("/user", func(c *gin.Context) {
 		GetAllUsers(db, c)
 	})
+	admin.GET("/user/:email", func(c *gin.Context) {
+		GetUser(db, c)
+	})
 	return r
 }
 
@@ -39,7 +42,7 @@ func TestGetAllUsers(t *testing.T) {
 		mock.ExpectQuery("^SELECT email FROM users").
 			WillReturnRows(rows)
 
-		req, err := http.NewRequest("GET", "/api/v1/admin/user", nil)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/admin/user", nil)
 		require.NoError(t, err)
 
 		resp := httptest.NewRecorder()
@@ -63,7 +66,7 @@ func TestGetAllUsers(t *testing.T) {
 		mock.ExpectQuery("^SELECT email FROM users").
 			WillReturnError(errors.New("Error retrieving users"))
 
-		req, err := http.NewRequest("GET", "/api/v1/admin/user", nil)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/admin/user", nil)
 		require.NoError(t, err)
 
 		resp := httptest.NewRecorder()
@@ -71,6 +74,70 @@ func TestGetAllUsers(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, resp.Code)
 		assert.Contains(t, resp.Body.String(), "Error retrieving users")
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestGetUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	router := setupTestRouter(db)
+
+	t.Run("Successful retrieval of user by email", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"email"}).
+			AddRow("user1@example.com")
+
+		mock.ExpectQuery("^SELECT email FROM users WHERE email = ?").
+			WithArgs("user1@example.com").
+			WillReturnRows(rows)
+
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/admin/user/user1@example.com", nil)
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		var userResponse models.UserResponse
+		err = json.Unmarshal(resp.Body.Bytes(), &userResponse)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.Code)
+		assert.Equal(t, "user1@example.com", userResponse.Email)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("User not found", func(t *testing.T) {
+		mock.ExpectQuery("^SELECT email FROM users WHERE email = ?").
+			WithArgs("notfound@example.com").
+			WillReturnError(sql.ErrNoRows)
+
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/admin/user/notfound@example.com", nil)
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Error retrieving user by email", func(t *testing.T) {
+		mock.ExpectQuery("^SELECT email FROM users WHERE email = ?").
+			WithArgs("error@example.com").
+			WillReturnError(errors.New("Error retrieving user"))
+
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/admin/user/error@example.com", nil)
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
 
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

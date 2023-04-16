@@ -25,3 +25,16 @@ func GetAllUsers(db *sql.DB, c *gin.Context) {
 
 	c.JSON(http.StatusOK, userResponses)
 }
+
+func GetUser(db *sql.DB, c *gin.Context) {
+	email := c.Param("email")
+	user, err := database.GetUserByEmail(db, email)
+
+	if err != nil {
+		helper.HandleError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	userResponses := models.UserResponse{Email: user.Email}
+	c.JSON(http.StatusOK, userResponses)
+}

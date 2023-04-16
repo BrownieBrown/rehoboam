@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
@@ -43,6 +44,56 @@ func TestGetAllUsersFromDB(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, users)
 		assert.Contains(t, err.Error(), "Error retrieving users")
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestGetUserByEmail(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	t.Run("Successful retrieval of user by email", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"email"}).
+			AddRow("user1@example.com")
+
+		mock.ExpectQuery("^SELECT email FROM users WHERE email = ?").
+			WithArgs("user1@example.com").
+			WillReturnRows(rows)
+
+		user, err := GetUserByEmail(db, "user1@example.com")
+
+		require.NoError(t, err)
+		assert.NotNil(t, user)
+		assert.Equal(t, "user1@example.com", user.Email)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("User not found", func(t *testing.T) {
+		mock.ExpectQuery("^SELECT email FROM users WHERE email = ?").
+			WithArgs("notfound@example.com").
+			WillReturnError(sql.ErrNoRows)
+
+		user, err := GetUserByEmail(db, "notfound@example.com")
+
+		require.NoError(t, err)
+		assert.Nil(t, user)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Error retrieving user by email", func(t *testing.T) {
+		mock.ExpectQuery("^SELECT email FROM users WHERE email = ?").
+			WithArgs("error@example.com").
+			WillReturnError(errors.New("Error retrieving user"))
+
+		user, err := GetUserByEmail(db, "error@example.com")
+
+		require.Error(t, err)
+		assert.Nil(t, user)
+		assert.Contains(t, err.Error(), "Error retrieving user")
 
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
