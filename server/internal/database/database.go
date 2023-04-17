@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"rehoboam/internal/config"
+	"rehoboam/internal/models"
 	"sync"
 	"time"
 
@@ -38,5 +39,121 @@ func (dbm *DBManager) Close() error {
 	if dbm.dbInstance != nil {
 		return dbm.dbInstance.Close()
 	}
+	return nil
+}
+
+func GetAllUsersFromDB(db *sql.DB) ([]models.UserResponse, error) {
+	rows, err := db.Query("SELECT email FROM users")
+	if err != nil {
+		log.Printf("Error querying users: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.UserResponse
+	for rows.Next() {
+		var user models.UserResponse
+		err := rows.Scan(&user.Email)
+		if err != nil {
+			log.Printf("Error scanning user: %v", err)
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		log.Printf("Error iterating users: %v", err)
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func GetUserByEmail(db *sql.DB, email string) (*models.UserResponse, error) {
+	row := db.QueryRow("SELECT email FROM users WHERE email = ?", email)
+	var user models.UserResponse
+
+	err := row.Scan(&user.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		log.Printf("Error scanning user: %v", err)
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func ClearDatabase(db *sql.DB) error {
+	_, err := db.Exec("TRUNCATE TABLE users")
+
+	if err != nil {
+		log.Printf("Error clearing users table: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func DeleteUserFromDatabaseByEmail(db *sql.DB, email string) error {
+	_, err := db.Exec("DELETE FROM users WHERE email = ?", email)
+	if err != nil {
+		log.Printf("Error deleting user by email: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func CreateUser(db *sql.DB, user *models.User) error {
+	_, err := db.Exec("INSERT INTO users (email, password) VALUES (?, ?)", user.Email, user.Password)
+
+	if err != nil {
+		log.Printf("Error creating user: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func UpdateUser(db *sql.DB, email string, updatedUser models.User) error {
+	tx, err := db.Begin()
+	if err != nil {
+		log.Printf("Error beginning transaction: %v", err)
+		return err
+	}
+
+	if updatedUser.Email != "" {
+		_, err = tx.Exec("UPDATE users SET email = ? WHERE email = ?", updatedUser.Email, email)
+		if err != nil {
+			log.Printf("Error updating email: %v", err)
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
+		}
+	}
+
+	if updatedUser.Password != "" {
+		_, err = tx.Exec("UPDATE users SET password = ? WHERE email = ?", updatedUser.Password, email)
+		if err != nil {
+			log.Printf("Error updating password: %v", err)
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("Error committing transaction: %v", err)
+		return err
+	}
+
 	return nil
 }

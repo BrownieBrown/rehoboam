@@ -5,6 +5,7 @@ import (
 	"log"
 	"rehoboam/internal/auth"
 	"rehoboam/internal/config"
+	"rehoboam/internal/controllers"
 	"rehoboam/internal/database"
 )
 
@@ -20,11 +21,24 @@ func main() {
 
 	r := gin.Default()
 
-	apiV1 := r.Group("/api/v1/user")
+	public := r.Group("/api/v1/user")
 	{
-		apiV1.POST("/signUp", func(c *gin.Context) { auth.SignUp(db, c) })
-		apiV1.POST("/signIn", func(c *gin.Context) { auth.SignIn(db, c) })
+		public.POST("/signUp", func(c *gin.Context) { auth.SignUp(db, c) })
+		public.POST("/signIn", func(c *gin.Context) { auth.SignIn(db, c) })
 	}
 
-	r.Run(":8080")
+	admin := r.Group("/api/v1/admin")
+	{
+		admin.GET("/user", func(c *gin.Context) { controllers.GetAllUsers(db, c) })
+		admin.GET("/user/:email", func(c *gin.Context) { controllers.GetUser(db, c) })
+		admin.DELETE("/user", func(c *gin.Context) { controllers.DeleteAllUsers(db, c) })
+		admin.DELETE("/user/:email", func(c *gin.Context) { controllers.DeleteUserByEmail(db, c) })
+		admin.POST("/user", func(c *gin.Context) { controllers.CreateUser(db, c) })
+		admin.PUT("/user/:email", func(c *gin.Context) { controllers.UpdateUserByEmail(db, c) })
+	}
+
+	err = r.Run(":8080")
+	if err != nil {
+		log.Fatalf("Error starting the server: %v", err)
+	}
 }
