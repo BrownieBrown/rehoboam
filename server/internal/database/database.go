@@ -117,3 +117,43 @@ func CreateUser(db *sql.DB, user *models.User) error {
 
 	return nil
 }
+
+func UpdateUser(db *sql.DB, email string, updatedUser models.User) error {
+	tx, err := db.Begin()
+	if err != nil {
+		log.Printf("Error beginning transaction: %v", err)
+		return err
+	}
+
+	if updatedUser.Email != "" {
+		_, err = tx.Exec("UPDATE users SET email = ? WHERE email = ?", updatedUser.Email, email)
+		if err != nil {
+			log.Printf("Error updating email: %v", err)
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
+		}
+	}
+
+	if updatedUser.Password != "" {
+		_, err = tx.Exec("UPDATE users SET password = ? WHERE email = ?", updatedUser.Password, email)
+		if err != nil {
+			log.Printf("Error updating password: %v", err)
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("Error committing transaction: %v", err)
+		return err
+	}
+
+	return nil
+}

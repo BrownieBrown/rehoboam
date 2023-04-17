@@ -34,6 +34,7 @@ func main() {
 		admin.DELETE("/user", func(c *gin.Context) { controllers.DeleteAllUsers(db, c) })
 		admin.DELETE("/user/:email", func(c *gin.Context) { controllers.DeleteUserByEmail(db, c) })
 		admin.POST("/user", func(c *gin.Context) { controllers.CreateUser(db, c) })
+		admin.PUT("/user/:email", func(c *gin.Context) { controllers.UpdateUserByEmail(db, c) })
 	}
 
 	err = r.Run(":8080")

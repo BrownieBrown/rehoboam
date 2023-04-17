@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -32,6 +33,9 @@ func setupTestRouter(db *sql.DB) *gin.Engine {
 	})
 	admin.POST("/user", func(c *gin.Context) {
 		CreateUser(db, c)
+	})
+	admin.PUT("/user/:email", func(c *gin.Context) {
+		UpdateUserByEmail(db, c)
 	})
 
 	return r
@@ -254,6 +258,72 @@ func TestCreateUser(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, resp.Code)
 		assert.Contains(t, resp.Body.String(), "Error creating user")
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestUpdateUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	router := setupTestRouter(db)
+
+	t.Run("Successful update of user", func(t *testing.T) {
+		email := "user1@example.com"
+		updatedUser := models.User{
+			Email:    "user1_new@example.com",
+			Password: "new_password",
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec("^UPDATE users SET email = (.+) WHERE email = (.+)$").
+			WithArgs(updatedUser.Email, email).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("^UPDATE users SET password = (.+) WHERE email = (.+)$").
+			WithArgs(updatedUser.Password, email).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		reqBody, err := json.Marshal(updatedUser)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest(http.MethodPut, "/api/v1/admin/user/"+email, bytes.NewBuffer(reqBody))
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Error updating user", func(t *testing.T) {
+		email := "user2@example.com"
+		updatedUser := models.User{
+			Email:    "user2_new@example.com",
+			Password: "valid_password",
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec("^UPDATE users SET email = (.+) WHERE email = (.+)$").
+			WithArgs(updatedUser.Email, email).
+			WillReturnError(errors.New("Error updating email"))
+		mock.ExpectRollback()
+
+		reqBody, err := json.Marshal(updatedUser)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest(http.MethodPut, "/api/v1/admin/user/"+email, bytes.NewBuffer(reqBody))
+		require.NoError(t, err)
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		assert.Equal(t, http.StatusInternalServerError, resp.Code)
+		assert.Contains(t, resp.Body.String(), "Error updating email")
 
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})

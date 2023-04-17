@@ -77,3 +77,22 @@ func CreateUser(db *sql.DB, c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{"message": "User successfully created"})
 }
+
+func UpdateUserByEmail(db *sql.DB, c *gin.Context) {
+	email := c.Param("email")
+
+	var updatedUser models.User
+	err := c.BindJSON(&updatedUser)
+	if err != nil {
+		helper.HandleError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	err = database.UpdateUser(db, email, updatedUser)
+	if err != nil {
+		helper.HandleError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
+}

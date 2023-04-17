@@ -183,3 +183,49 @@ func TestDBManager(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestUpdateUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer db.Close()
+
+	t.Run("Successfully update user", func(t *testing.T) {
+		email := "user1@example.com"
+		updatedUser := models.User{
+			Email:    "user1_new@example.com",
+			Password: "new_password",
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec("^UPDATE users SET email = (.+) WHERE email = (.+)$").
+			WithArgs(updatedUser.Email, email).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("^UPDATE users SET password = (.+) WHERE email = (.+)$").
+			WithArgs(updatedUser.Password, email).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		err := UpdateUser(db, email, updatedUser)
+		assert.NoError(t, err)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("Error updating user", func(t *testing.T) {
+		email := "user2@example.com"
+		updatedUser := models.User{
+			Email:    "user2_new@example.com",
+			Password: "",
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectExec("^UPDATE users SET email = (.+) WHERE email = (.+)$").
+			WithArgs(updatedUser.Email, email).
+			WillReturnError(errors.New("Error updating email"))
+		mock.ExpectRollback()
+
+		err := UpdateUser(db, email, updatedUser)
+		assert.Error(t, err)
+		assert.Equal(t, "Error updating email", err.Error())
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
