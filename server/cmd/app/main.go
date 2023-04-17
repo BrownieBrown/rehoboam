@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"log"
 	"rehoboam/internal/auth"
@@ -21,7 +22,15 @@ func main() {
 
 	r := gin.Default()
 
-	public := r.Group("/api/v1/user")
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowAllOrigins = true                                             // Allow all origins
+	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE"}            // Specify allowed methods
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"} // Specify allowed headers
+
+	// Apply the CORS middleware to the router
+	r.Use(cors.New(corsConfig))
+
+	public := r.Group("/api/v1/auth")
 	{
 		public.POST("/signUp", func(c *gin.Context) { auth.SignUp(db, c) })
 		public.POST("/signIn", func(c *gin.Context) { auth.SignIn(db, c) })

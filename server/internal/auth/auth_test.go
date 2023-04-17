@@ -18,7 +18,7 @@ import (
 
 func setupTestRouter(db *sql.DB) *gin.Engine {
 	r := gin.Default()
-	api := r.Group("/api/v1/user")
+	api := r.Group("/api/v1/auth")
 	api.POST("/signUp", func(c *gin.Context) {
 		SignUp(db, c)
 	})
@@ -36,7 +36,7 @@ func TestSignUp(t *testing.T) {
 	router := setupTestRouter(db)
 
 	t.Run("Successful registration", func(t *testing.T) {
-		mock.ExpectPrepare("INSERT INTO users").
+		mock.ExpectPrepare("^INSERT INTO users").
 			ExpectExec().
 			WithArgs("test@example.com", sqlmock.AnyArg()).
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -49,7 +49,7 @@ func TestSignUp(t *testing.T) {
 		body, err := json.Marshal(user)
 		require.NoError(t, err)
 
-		req, err := http.NewRequest("POST", "/api/v1/user/signUp", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/auth/signUp", bytes.NewReader(body))
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/json")
 
@@ -61,7 +61,7 @@ func TestSignUp(t *testing.T) {
 	})
 
 	t.Run("User already exists", func(t *testing.T) {
-		mock.ExpectPrepare("INSERT INTO users").
+		mock.ExpectPrepare("^INSERT INTO users").
 			ExpectExec().
 			WithArgs("duplicate@example.com", sqlmock.AnyArg()).
 			WillReturnError(&mysql.MySQLError{Number: 1062, Message: "Duplicate entry"})
@@ -74,7 +74,7 @@ func TestSignUp(t *testing.T) {
 		body, err := json.Marshal(user)
 		require.NoError(t, err)
 
-		req, err := http.NewRequest("POST", "/api/v1/user/signUp", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/auth/signUp", bytes.NewReader(body))
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/json")
 
